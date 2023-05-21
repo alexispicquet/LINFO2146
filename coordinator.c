@@ -19,21 +19,59 @@
 /* Configuration */
 #define SEND_INTERVAL (4 * CLOCK_SECOND)
 
+// Sync interval for Berkeley Time Synchronization Algorithm
+#define SYNC_INTERVAL 10
+
 #if MAC_CONF_WITH_TSCH
 #include "net/mac/tsch/tsch.h"
 //static linkaddr_t dest_addr =         {{ 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
 static linkaddr_t coordinator_addr =  {{ 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
 #endif /* MAC_CONF_WITH_TSCH */
 
-
-//static linkaddr_t parent;
 static pkt_list_t* neighbours;
 static pkt_list_t* to_ack;
 static pkt_list_t* kids;
 
+// Variable for storing local time offset
+static clock_time_t time_offset = 0;
+
 /*---------------------------------------------------------------------------*/
 PROCESS(nullnet_example_process, "NullNet broadcast example");
 AUTOSTART_PROCESSES(&nullnet_example_process);
+
+/*---------------------------------------------------------------------------*/
+void adjust_local_clock(clock_time_t adjustment) {
+    time_offset += adjustment;
+}
+
+// Berkeley Time Synchronization Algorithm
+void berkeley_sync_algorithm() {
+    int node_count = size_list(neighbours);
+    clock_time_t time_sum = 0;
+
+    // Sum all clock values from neighbours
+    pkt_list_t* temp = neighbours;
+    while (temp != NULL) {
+        time_sum += temp->head->timestamp;
+        temp = temp->next;
+    }
+
+    // Average time
+    clock_time_t average_time = time_sum / node_count;
+
+    // Adjust local clock
+    adjust_local_clock(average_time - clock_time());
+
+    // Update all neighbours
+    temp = neighbours;
+    while (temp != NULL) {
+        clock_time_t adjustment = average_time - temp->head->timestamp;
+        // Send adjustment to neighbour. This is a placeholder function
+        // and you would need to implement it according to your specific needs
+        send_time_adjustment(&temp->src, adjustment);
+        temp = temp->next;
+    }
+}
 
 /*---------------------------------------------------------------------------*/
 void input_callback(const void *data, uint16_t len,
@@ -59,6 +97,7 @@ void input_callback(const void *data, uint16_t len,
     LOG_INFO_("\n");
   }
 }
+
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(nullnet_example_process, ev, data)
 {
@@ -171,6 +210,11 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
     nullnet_buf = NULL;
     nullnet_len = 0;
     etimer_reset(&periodic_timer);
+
+    // Call Berkeley Time Synchronization Algorithm every SYNC_INTERVAL iteration
+    if(iter % SYNC_INTERVAL == 0) {
+        berkeley_sync_algorithm();
+    }
   }
   free_pkt(pkt);
   free_list(neighbours);
