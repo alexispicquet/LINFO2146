@@ -47,7 +47,7 @@ PROCESS_THREAD(border_router, ev, data)
 
     simple_udp_sendto(&udp_conn, message, strlen(message), &server_addr);
 
-    /* Process other tasks or events as needed */
+ 
   }
 
   PROCESS_END();
