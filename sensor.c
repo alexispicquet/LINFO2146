@@ -87,7 +87,7 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     
     // choose parent
-    if(size_list(neighbours)>0 && rank==100) {
+if(size_list(neighbours)>0 && (rank==100 || linkaddr_cmp(&parent,&(neighbours->src))==0)) {
         rank = 100;
         nullnet_buf = (uint8_t *)pkt;
         nullnet_len = sizeof(*pkt);
