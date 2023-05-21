@@ -28,6 +28,7 @@ typedef struct {
     uint8_t type;// : 1;
     uint8_t rank;// : 4;
     uint8_t rssi;
+    uint8_t timestamp;
 } packet_t;
 
 typedef struct list {
@@ -40,7 +41,7 @@ typedef struct list {
 packet_t* init_pkt(uint8_t status, uint8_t type, uint8_t rank){
     packet_t* pkt = malloc(sizeof(packet_t));
     if(pkt==NULL) return NULL;
-    
+    pkt -> timestamp = clock_time();
     pkt -> status = status;
     pkt -> type = type;
     pkt -> rank = rank;

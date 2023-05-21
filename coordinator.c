@@ -126,19 +126,23 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
     if(iter>20) {iter=0;}
     iter++;
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+    if(iter % SYNC_INTERVAL == 0) {
+    berkeley_sync_algorithm();
+    }
     // broadcast if no neighbours or periodically
-    if(iter==0 || size_list(neighbours)==0) {
-        nullnet_buf = (uint8_t *)pkt;
-        nullnet_len = sizeof(*pkt);
-        pkt = init_pkt(SEARCH, COOR, 0);
-        LOG_INFO_("COOR %u broadcast",node_id);
-        LOG_INFO_("\n");
-    
-        memcpy(nullnet_buf, pkt, sizeof(*pkt));
-        nullnet_len = sizeof(*pkt);
-
-        NETSTACK_NETWORK.output(NULL);
-        action = TRUE;
+    clock_time_t current_time = clock_time() + time_offset; // Get synchronized time
+    if (current_time % (TOTAL_TIMESLOTS * TIMESLOT_DURATION) == MY_TIMESLOT * TIMESLOT_DURATION) {
+    // It's my timeslot, do the transmission
+    nullnet_buf = (uint8_t *)pkt;
+    nullnet_len = sizeof(*pkt);
+    memcpy(nullnet_buf, pkt, sizeof(*pkt));
+    nullnet_len = sizeof(*pkt);
+    NETSTACK_NETWORK.output(NULL);
+    action = TRUE;
+    } else {
+    // It's not my timeslot, wait for the next timeslot
+    etimer_set(&periodic_timer, (MY_TIMESLOT * TIMESLOT_DURATION) - (current_time % (TOTAL_TIMESLOTS * TIMESLOT_DURATION)));
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     }
     // update kids counter (+1)
     pkt_list_t* temp = kids;
