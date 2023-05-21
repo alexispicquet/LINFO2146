@@ -1,12 +1,9 @@
 #include "contiki.h"
-
 #include "sys/node-id.h"
 #include "net/netstack.h"
 #include "net/nullnet/nullnet.h"
-
 #include "packet.c"
 #include "cc2420.h"
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h> /* For printf() */
@@ -18,6 +15,7 @@
 
 /* Configuration */
 #define SEND_INTERVAL (4 * CLOCK_SECOND)
+#define POLL_INTERVAL (10 * CLOCK_SECOND) // Adjust the interval as needed
 
 #if MAC_CONF_WITH_TSCH
 #include "net/mac/tsch/tsch.h"
@@ -36,9 +34,7 @@ PROCESS(nullnet_example_process, "NullNet broadcast example");
 AUTOSTART_PROCESSES(&nullnet_example_process);
 
 /*---------------------------------------------------------------------------*/
-void input_callback(const void *data, uint16_t len,
-  const linkaddr_t *src, const linkaddr_t *dest)
-{ 
+void input_callback(const void *data, uint16_t len,const linkaddr_t *src, const linkaddr_t *dest){
   if(len == sizeof(packet_t)) {
     if(neighbours==NULL) {
       neighbours = init_list();
@@ -47,11 +43,11 @@ void input_callback(const void *data, uint16_t len,
     } if(kids==NULL) {
       kids = init_list();
     }
-    
+
     packet_t pkt;
     memcpy(&pkt, data, sizeof(pkt));
-    
-    pkt.rssi = cc2420_last_rssi;    
+
+    pkt.rssi = cc2420_last_rssi;
     uint8_t res = add_parent(neighbours, init_pkt2(&pkt), *src);
     uint8_t res2 = add_acker(to_ack, init_pkt2(&pkt), *src);
     LOG_INFO_LLADDR(src);
@@ -62,18 +58,18 @@ void input_callback(const void *data, uint16_t len,
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(nullnet_example_process, ev, data)
 {
-  static struct etimer periodic_timer;
-  static packet_t* pkt;
-  
-  static unsigned parent_cnt = 0;
-  static unsigned parent_ok = FALSE;
-  static unsigned parent_wait = FALSE;
-  static unsigned action = FALSE;
-  
-  PROCESS_BEGIN();
+    static struct etimer periodic_timer;
+    static packet_t* pkt;
+
+    static unsigned parent_cnt = 0;
+    static unsigned parent_ok = FALSE;
+    static unsigned parent_wait = FALSE;
+    static unsigned action = FALSE;
+
+    PROCESS_BEGIN();
 
 #if MAC_CONF_WITH_TSCH
-  tsch_set_coordinator(linkaddr_cmp(&coordinator_addr, &linkaddr_node_addr));
+    tsch_set_coordinator(linkaddr_cmp(&coordinator_addr, &linkaddr_node_addr));
 #endif /* MAC_CONF_WITH_TSCH */
 
   /* Initialize NullNet */
@@ -85,18 +81,18 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
   etimer_set(&periodic_timer, SEND_INTERVAL);
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-    
+
     // choose parent
 if(size_list(neighbours)>0 && (rank==100 || linkaddr_cmp(&parent,&(neighbours->src))==0)) {
         rank = 100;
         nullnet_buf = (uint8_t *)pkt;
         nullnet_len = sizeof(*pkt);
-        
+
         pkt = init_pkt(PARENT, SENSOR, rank);
         LOG_INFO_("%u -parent-> ",node_id);
         LOG_INFO_LLADDR(&(neighbours->src));
         LOG_INFO_("\n");
-        
+
         memcpy(nullnet_buf, pkt, sizeof(*pkt));
         nullnet_len = sizeof(*pkt);
         NETSTACK_NETWORK.output(&(neighbours->src));
@@ -140,10 +136,10 @@ if(size_list(neighbours)>0 && (rank==100 || linkaddr_cmp(&parent,&(neighbours->s
                 neighbours = neighbours->next;
                 free(first);
                 parent_cnt = 0;
-                
+
                 free_list(kids);
                 kids = NULL;
-        
+
                 LOG_INFO_("remove parent ");
                 LOG_INFO_LLADDR(&parent);
                 LOG_INFO_("\n");
@@ -160,7 +156,7 @@ if(size_list(neighbours)>0 && (rank==100 || linkaddr_cmp(&parent,&(neighbours->s
             }
         }
         //message from kid should update alone
-        
+
         if(temp->head->status%2==0) {
             if(temp->head->status==PARENT) {
                 // no parent => cant have kids
@@ -182,7 +178,7 @@ if(size_list(neighbours)>0 && (rank==100 || linkaddr_cmp(&parent,&(neighbours->s
             LOG_INFO_("%u -status %u ack-> ",node_id, temp->head->status);
             LOG_INFO_LLADDR(&temp->src);
             LOG_INFO_("\n");
-    
+
             memcpy(nullnet_buf, pkt, sizeof(*pkt));
             nullnet_len = sizeof(*pkt);
 
@@ -202,11 +198,11 @@ if(size_list(neighbours)>0 && (rank==100 || linkaddr_cmp(&parent,&(neighbours->s
             free_pkt(temp->head);
             first = temp;
             temp = temp->next;
-        
+
             LOG_INFO_("remove kid ");
             LOG_INFO_LLADDR(&first->src);
             LOG_INFO_("\n");
-            
+
             free(first);
         } else {
             temp = temp->next;
@@ -223,7 +219,7 @@ if(size_list(neighbours)>0 && (rank==100 || linkaddr_cmp(&parent,&(neighbours->s
         LOG_INFO_("%u broadcast, rank %u, parent ",node_id, rank);
         if(rank<100) {LOG_INFO_LLADDR(&parent);}
         LOG_INFO_("\n");
-    
+
         memcpy(nullnet_buf, pkt, sizeof(*pkt));
         nullnet_len = sizeof(*pkt);
 
@@ -243,15 +239,15 @@ if(size_list(neighbours)>0 && (rank==100 || linkaddr_cmp(&parent,&(neighbours->s
         neighbours = neighbours->next;
         free(first);
         parent_cnt = 0;
-        
+
         free_list(kids);
         kids = NULL;
-        
+
         LOG_INFO_("remove parent ");
         LOG_INFO_LLADDR(&parent);
         LOG_INFO_("\n");
     }
-    
+
     // if no action listen
     if(action==FALSE) {
         LOG_INFO_("no action .. parent ");
@@ -259,7 +255,7 @@ if(size_list(neighbours)>0 && (rank==100 || linkaddr_cmp(&parent,&(neighbours->s
         LOG_INFO_("\n");
         NETSTACK_NETWORK.output(NULL);
     }
-    
+
     // reset
     parent_wait = FALSE;
     action = FALSE;
