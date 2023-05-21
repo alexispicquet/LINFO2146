@@ -203,6 +203,9 @@ uint8_t add_parent(pkt_list_t* l, packet_t* pkt, linkaddr_t src) {
         
             // node placed earlier in list -> remove old value
             if(isplaced == TRUE) {
+                temp->head = temp->next->head;
+                temp->src = temp->next->src;
+                temp->next = temp->next->next;
                 return 2;
             }
             
@@ -220,7 +223,9 @@ uint8_t add_parent(pkt_list_t* l, packet_t* pkt, linkaddr_t src) {
             }
             
             // isplaced == FALSE && new values && should be placed later in list
-            temp = temp -> next;
+            temp->head = temp->next->head;
+            temp->src = temp->next->src;
+            temp->next = temp->next->next;
             canquit = TRUE;
             
         } else { // no match
