@@ -87,7 +87,7 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     
     // choose parent
-    if(size_list(neighbours)>0 && rank==100) {
+    if(size_list(neighbours)>0 && (rank==100 || linkaddr_cmp(&parent, &(neighbours->src))==0)) {
         rank = 100;
         nullnet_buf = (uint8_t *)pkt;
         nullnet_len = sizeof(*pkt);
@@ -108,6 +108,12 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
     }
     // update kids counter (+1)
     pkt_list_t* temp = kids;
+    while(temp!=NULL && temp->head!=NULL) {
+        temp->counter += 1;
+        temp = temp->next;
+    }
+    // update neighbours counter (+1)
+    temp = neighbours;
     while(temp!=NULL && temp->head!=NULL) {
         temp->counter += 1;
         temp = temp->next;
@@ -159,7 +165,7 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
                 continue;
             }
         }
-        //message from kid should update alone
+        // message from kid should update alone
         
         if(temp->head->status%2==0) {
             if(temp->head->status==PARENT) {
@@ -212,6 +218,30 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
             temp = temp->next;
         }
     }
+    /*/ remove neighbours
+    temp = neighbours;
+    while(temp!=NULL && temp->head!=NULL) {
+        if(temp->counter > 10 && linkaddr_cmp(&parent, &(temp->src))!=0) {
+            rank=100;
+            parent_cnt = 0;
+        
+            free_list(kids);
+            kids = NULL;
+        } if(temp->counter > 10) {
+            pkt_list_t* first;
+            free_pkt(temp->head);
+            first = temp;
+            temp = temp->next;
+        
+            LOG_INFO_("remove neighbour ");
+            LOG_INFO_LLADDR(&first->src);
+            LOG_INFO_("\n");
+            
+            free(first);
+        } else {
+            temp = temp->next;
+        }
+    }*/
     // free messages received
     free_list(to_ack);
     to_ack = NULL;
