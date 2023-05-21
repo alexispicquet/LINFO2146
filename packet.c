@@ -28,7 +28,6 @@ typedef struct {
     uint8_t type;// : 1;
     uint8_t rank;// : 4;
     uint8_t rssi;
-    uint8_t timestamp;
 } packet_t;
 
 typedef struct list {
@@ -41,7 +40,7 @@ typedef struct list {
 packet_t* init_pkt(uint8_t status, uint8_t type, uint8_t rank){
     packet_t* pkt = malloc(sizeof(packet_t));
     if(pkt==NULL) return NULL;
-    pkt -> timestamp = clock_time();
+    
     pkt -> status = status;
     pkt -> type = type;
     pkt -> rank = rank;
@@ -68,6 +67,7 @@ pkt_list_t* init_list(){
     if(l==NULL) return NULL;
     l->head=NULL;
     l->next=NULL;
+    l->counter=0;
     return l;
 }
 
@@ -188,6 +188,7 @@ uint8_t add_parent(pkt_list_t* l, packet_t* pkt, linkaddr_t src) {
     if(l->head==NULL) {
         l -> head = pkt;
         l -> src = src;
+        l -> counter = 0;
         return 3;
     }
     pkt_list_t* temp = l;
@@ -200,9 +201,11 @@ uint8_t add_parent(pkt_list_t* l, packet_t* pkt, linkaddr_t src) {
         new_node->head = temp->head;
         new_node->src = temp->src;
         new_node->next = temp->next;
+        new_node->counter = 0;
         
         temp->head = pkt;
         temp->src = src;
+        temp->counter = 0;
         temp->next = new_node;
         return 4;
     }
@@ -221,6 +224,7 @@ uint8_t add_parent(pkt_list_t* l, packet_t* pkt, linkaddr_t src) {
             
             // no changes to be done
             if(temp->head->rssi==pkt->rssi && temp->head->rank==pkt->rank) {
+                temp->counter = 0;
                 return 1;
             }
             
@@ -229,6 +233,7 @@ uint8_t add_parent(pkt_list_t* l, packet_t* pkt, linkaddr_t src) {
                 // update node signal and rank
                 temp->head->rssi = pkt->rssi;
                 temp->head->rank = pkt->rank;
+                temp->counter = 0;
                 return 2;
             }
             
@@ -246,6 +251,7 @@ uint8_t add_parent(pkt_list_t* l, packet_t* pkt, linkaddr_t src) {
                 }
                 new_node->head = pkt;
                 new_node->src = src;
+                new_node->counter = 0;
                 new_node->next = temp->next;
                 
                 temp->next = new_node;
@@ -277,6 +283,7 @@ uint8_t add_parent(pkt_list_t* l, packet_t* pkt, linkaddr_t src) {
     }
     temp->next->head = pkt;
     temp->next->src = src;
+    temp->next->counter = 0;
     return 6;
 }
 
