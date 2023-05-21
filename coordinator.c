@@ -16,6 +16,7 @@
 /* Configuration */
 #define SEND_INTERVAL (4 * CLOCK_SECOND)
 #define POLL_INTERVAL (10 * CLOCK_SECOND) // Adjust the interval as needed
+#define POLL_REQUEST 1
 
 #if MAC_CONF_WITH_TSCH
 #include "net/mac/tsch/tsch.h"
